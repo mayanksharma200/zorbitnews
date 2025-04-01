@@ -8,6 +8,7 @@
     "dev": "cross-env NODE_ENV=development nodemon api/index.js",
     "start": "cross-env NODE_ENV=production node api/index.js",
     "build": "npm install --production && npm prune --production",
+    "vercel-build": "npm install && npm run build",
     "test": "cross-env NODE_ENV=test jest",
     "lint": "eslint .",
     "prestart": "npm run build"
