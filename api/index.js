@@ -127,6 +127,11 @@ app.get("/api/google-news", async (req, res) => {
   }
 });
 
+// Example route
+app.get('/api/test', (req, res) => {
+  res.json({ message: "API is working!" });
+});
+
 app.post("/api/generate-story", async (req, res) => {
   try {
     const { title, source, imageUrl } = req.body;
