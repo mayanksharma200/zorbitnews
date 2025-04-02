@@ -5,7 +5,7 @@
   "type": "module",
   "main": "api/index.js",
   "scripts": {
-    "build": "npm install && cd client && npm install && npm run build",
+    "build": "npm install && cd client && npm ci && npm run build",
     "start": "node api/index.js",
      "install-client": "cd client && npm install",
     "test": "cross-env NODE_ENV=test jest",
