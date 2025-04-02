@@ -57,10 +57,11 @@ function NewsList({ searchQuery, searchTrigger }) {
 
   // Only fetch news when searchTrigger changes (button clicked)
   useEffect(() => {
-    if (searchQuery) {  // Only fetch if there's a search query
+    if (searchQuery) {
+      // Only fetch if there's a search query
       fetchNews();
     }
-  }, [searchTrigger]);  // Removed searchQuery from dependencies
+  }, [searchTrigger]); // Removed searchQuery from dependencies
 
   const handleReadArticle = (article) => {
     navigate(`/article?url=${encodeURIComponent(article.link)}`, {

@@ -6,8 +6,11 @@
       "use": "@vercel/node"
     },
     {
-      "src": "client/**/*",
-      "use": "@vercel/static"
+      "src": "client/vite.config.js",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "../dist"
+      }
     }
   ],
   "routes": [
@@ -17,8 +20,7 @@
     },
     {
       "src": "/(.*)",
-      "dest": "/client/$1",
-      "continue": true
+      "dest": "/client/$1"
     }
   ]
 }
