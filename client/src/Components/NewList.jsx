@@ -19,6 +19,17 @@ function NewsList({ searchQuery, searchTrigger }) {
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
+  const extractArticleId = (url) => {
+    try {
+      const parsedUrl = new URL(url);
+      const pathParts = parsedUrl.pathname.split("/");
+      const lastPart = pathParts[pathParts.length - 1];
+      return /^[a-z0-9]{8,}$/i.test(lastPart) ? lastPart : null;
+    } catch {
+      return null;
+    }
+  };
+
   const fetchNews = async () => {
     setLoading(true);
     setError(null);
@@ -46,6 +57,7 @@ function NewsList({ searchQuery, searchTrigger }) {
     }
   };
 
+  // Fetch news when searchTrigger changes
   useEffect(() => {
     if (searchQuery) {
       fetchNews();
