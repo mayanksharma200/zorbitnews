@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import "./App.css";
-import NewsList from "../../api/NewList";
+import NewsList from "./Components/NewList";
 import ArticlePage from "./Components/ArticlesPage";
 import Navbar from "./Components/NavBar";
 
