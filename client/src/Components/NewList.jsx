@@ -34,11 +34,16 @@ function NewsList({ searchQuery, searchTrigger }) {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get(
-        `http://localhost:3000/api/google-news?query=${encodeURIComponent(
-          searchQuery
-        )}`
-      );
+      // const response = await axios.get(
+      //   `http://localhost:3000/api/google-news?query=${encodeURIComponent(
+      //     searchQuery
+      //   )}`
+      // );
+            const response = await axios.get(
+              `https://news-hub-api.vercel.app/api/google-news?query=${encodeURIComponent(
+                searchQuery
+              )}`
+            );
 
       if (response.data.success && Array.isArray(response.data.articles)) {
         setNewsArticles(response.data.articles);

@@ -19,9 +19,12 @@ function ArticlePage() {
     try {
       // 1. Fetch article if not in state
       if (!article && location.state?.articleUrl) {
-        const articleResponse = await axios.get("/api/article", {
-          params: { url: location.state.articleUrl },
-        });
+        const articleResponse = await axios.get(
+          "https://news-hub-api.vercel.app/api/article",
+          {
+            params: { url: location.state.articleUrl },
+          }
+        );
 
         if (!articleResponse.data.success) {
           throw new Error(articleResponse.data.error || "Article not found");
@@ -30,11 +33,14 @@ function ArticlePage() {
       }
 
       // 2. Generate content
-      const generateResponse = await axios.post("/api/generate-story", {
-        title: article?.title || location.state?.articleData?.title,
-        source: article?.source || location.state?.articleData?.source,
-        imageUrl: article?.image || location.state?.articleData?.image,
-      });
+      const generateResponse = await axios.post(
+        "https://news-hub-api.vercel.app/api/generate-story",
+        {
+          title: article?.title || location.state?.articleData?.title,
+          source: article?.source || location.state?.articleData?.source,
+          imageUrl: article?.image || location.state?.articleData?.image,
+        }
+      );
 
       if (!generateResponse.data.success) {
         throw new Error(generateResponse.data.error || "Generation failed");
