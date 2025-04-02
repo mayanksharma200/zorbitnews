@@ -5,7 +5,7 @@ import dotenv from "dotenv";
 import compression from "compression";
 import helmet from "helmet";
 
-dotenv.config({ path: "../.env.development" });
+dotenv.config({ path: "../.env" });
 
 const app = express();
 const port = 3000;
