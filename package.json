@@ -5,8 +5,8 @@
   "type": "module",
   "main": "api/index.js",
   "scripts": {
-    "start": "cross-env NODE_ENV=production node api/index.js",
-    "build": "npm install && npm run build:client",
+    "build": "npm install && cd client && npm install && npm run build",
+    "start": "node api/index.js",
     "build:client": "cd client && npm install && npm run build",
     "test": "cross-env NODE_ENV=test jest",
     "lint": "eslint .",
