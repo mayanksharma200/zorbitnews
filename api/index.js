@@ -22,8 +22,8 @@ if (process.env.NODE_ENV === "production") {
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN?.split(",") || [
-      "http://localhost:5173",
-      "https://your-vercel-app.vercel.app",
+      "https://news-hub-app-six.vercel.app", // No trailing slash!
+      "http://localhost:5173", // Keep for local development
     ],
     methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["Content-Type"],
