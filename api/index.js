@@ -1,22 +1,26 @@
+import express from "express";
+import axios from "axios";
+import cors from "cors";
 import dotenv from "dotenv";
+import compression from "compression";
+import helmet from "helmet";
+
 dotenv.config({ path: `.env.${process.env.NODE_ENV || "development"}` });
+
+
+
+// import dotenv from "dotenv";
+
+// Load environment variables from .env file
+
+const app = express();
+const port = process.env.PORT || 3000; // Use environment port or default to 3000
 
 // Production-specific middleware
 if (process.env.NODE_ENV === "production") {
   app.use(compression());
   app.use(helmet());
 }
-
-import express from "express";
-import axios from "axios";
-import cors from "cors";
-// import dotenv from "dotenv";
-
-// Load environment variables from .env file
-dotenv.config();
-
-const app = express();
-const port = process.env.PORT || 3000; // Use environment port or default to 3000
 
 // ======================
 // Middleware Configuration
