@@ -1,15 +1,35 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FiSearch, FiHome, FiBookmark, FiUser } from "react-icons/fi";
+import {
+  FiSearch,
+  FiHome,
+  FiBookmark,
+  FiUser,
+  FiX,
+  FiMenu,
+} from "react-icons/fi";
 
 const Navbar = ({ value, setSearchQuery, onSearch }) => {
   const navigate = useNavigate();
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleSearch = (e) => {
     e.preventDefault();
     if (onSearch) {
-      onSearch(); // This will call the fetchNews function from NewsList
+      onSearch();
+    }
+  };
+
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
+  const toggleMobileSearch = () => {
+    setIsMobileSearchOpen(!isMobileSearchOpen);
+    // Close the mobile menu if search is opened
+    if (!isMobileSearchOpen && isMobileMenuOpen) {
+      setIsMobileMenuOpen(false);
     }
   };
 
@@ -81,29 +101,19 @@ const Navbar = ({ value, setSearchQuery, onSearch }) => {
             </button>
           </div>
 
-          {/* Mobile menu button */}
+          {/* Mobile menu buttons */}
           <div className="md:hidden flex items-center">
             <button
-              onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
+              onClick={toggleMobileSearch}
               className="p-2 text-gray-600 hover:text-blue-600 rounded-full hover:bg-gray-100 transition-colors duration-200"
             >
               <FiSearch size={20} />
             </button>
-            <button className="ml-2 p-2 text-gray-600 hover:text-blue-600 rounded-full hover:bg-gray-100 transition-colors duration-200">
-              <svg
-                className="h-6 w-6"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              </svg>
+            <button
+              onClick={toggleMobileMenu}
+              className="ml-2 p-2 text-gray-600 hover:text-blue-600 rounded-full hover:bg-gray-100 transition-colors duration-200"
+            >
+              {isMobileMenuOpen ? <FiX size={24} /> : <FiMenu size={24} />}
             </button>
           </div>
         </div>
@@ -131,35 +141,47 @@ const Navbar = ({ value, setSearchQuery, onSearch }) => {
       )}
 
       {/* Mobile Navigation (Hidden by default) */}
-      <div className="md:hidden bg-white border-t border-gray-200">
-        <div className="px-2 pt-2 pb-3 space-y-1">
-          <Link
-            to="/"
-            className="flex items-center px-3 py-2 text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md"
-          >
-            <FiHome className="mr-2" size={18} />
-            Home
-          </Link>
-          <Link
-            to="/business"
-            className="flex items-center px-3 py-2 text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md"
-          >
-            Business
-          </Link>
-          <Link
-            to="/technology"
-            className="flex items-center px-3 py-2 text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md"
-          >
-            Technology
-          </Link>
-          <Link
-            to="/sports"
-            className="flex items-center px-3 py-2 text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md"
-          >
-            Sports
-          </Link>
+      {isMobileMenuOpen && (
+        <div className="md:hidden bg-white border-t border-gray-200">
+          <div className="px-2 pt-2 pb-3 space-y-1">
+            <Link
+              to="/"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="flex items-center px-3 py-2 text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md"
+            >
+              <FiHome className="mr-2" size={18} />
+              Home
+            </Link>
+            <Link
+              to="/business"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="flex items-center px-3 py-2 text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md"
+            >
+              Business
+            </Link>
+            <Link
+              to="/technology"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="flex items-center px-3 py-2 text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md"
+            >
+              Technology
+            </Link>
+            <Link
+              to="/sports"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="flex items-center px-3 py-2 text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md"
+            >
+              Sports
+            </Link>
+            <div className="px-3 py-2">
+              <button className="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+                <FiUser className="mr-2" size={18} />
+                Sign In
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </header>
   );
 };
