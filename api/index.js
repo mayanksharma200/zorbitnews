@@ -7,8 +7,6 @@ import helmet from "helmet";
 
 dotenv.config({ path: `.env.${process.env.NODE_ENV || "development"}` });
 
-
-
 // import dotenv from "dotenv";
 
 // Load environment variables from .env file
@@ -27,7 +25,10 @@ if (process.env.NODE_ENV === "production") {
 // ======================
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || "http://localhost:5174",
+    origin: process.env.CORS_ORIGIN || [
+      "http://localhost:5174",
+      "https://your-vercel-app.vercel.app",
+    ],
     methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["Content-Type"],
     credentials: true,
@@ -100,6 +101,7 @@ function validateGeminiResponse(response) {
 
 // 1. News Fetching Endpoint (unchanged)
 app.get("/api/google-news", async (req, res) => {
+  debugger;
   try {
     const { query = "India news", num = 10 } = req.query;
 
@@ -208,6 +210,7 @@ app.get("/api/article", async (req, res) => {
 
 // 3. Updated Content Generation Endpoint for gemini-1.5-flash
 app.post("/api/generate-story", async (req, res) => {
+  debugger;
   try {
     const { title, source, imageUrl } = req.body;
 
@@ -366,20 +369,20 @@ app.get("/api/health", async (req, res) => {
   }
 });
 
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).send("Something broke!");
-});
+// app.use((err, req, res, next) => {
+//   console.error(err.stack);
+//   res.status(500).send("Something broke!");
+// });
 
 // ======================
 // Server Startup
 // ======================
-// app.listen(port, () => {
-//   console.log(`Server running on http://localhost:${port}`);
-//   console.log("Available endpoints:");
-//   console.log("GET  /api/google-news - Fetch news articles");
-//   console.log("GET  /api/article - Get article details");
-//   console.log("POST /api/generate-story - Generate article content");
-//   console.log("GET  /api/health - Server health check");
-// });
+app.listen(port, () => {
+  console.log(`Server running on http://localhost:${port}`);
+  console.log("Available endpoints:");
+  console.log("GET  /api/google-news - Fetch news articles");
+  console.log("GET  /api/article - Get article details");
+  console.log("POST /api/generate-story - Generate article content");
+  console.log("GET  /api/health - Server health check");
+});
 export default app;

@@ -4,15 +4,15 @@
   "description": "",
   "type": "module",
   "main": "index.js",
-  "scripts": {
-    "dev": "cross-env NODE_ENV=development nodemon api/index.js",
-    "start": "cross-env NODE_ENV=production node api/index.js",
-    "build": "npm install --production && npm prune --production",
-    "vercel-build": "npm install && npm prune --production",
-    "test": "cross-env NODE_ENV=test jest",
-    "lint": "eslint .",
-    "prestart": "npm run build"
-  },
+"scripts": {
+   "dev": "cross-env NODE_ENV=development nodemon api/index.js",
+  "start": "cross-env NODE_ENV=production node api/index.js",
+  "build": "npm install --production && npm prune --production",
+  "vercel-build": "npm install && npm prune --production",
+  "test": "cross-env NODE_ENV=test jest",
+  "lint": "eslint .",
+  "prestart": "npm run build"
+},
   "keywords": [],
   "author": "",
   "license": "ISC",
