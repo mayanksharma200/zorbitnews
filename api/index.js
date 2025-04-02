@@ -19,17 +19,16 @@ if (process.env.NODE_ENV === "production") {
 // ======================
 // Middleware Configuration
 // ======================
-app.use(
-  cors({
-    origin: process.env.CORS_ORIGIN?.split(",") || [
-      "https://news-hub-app-six.vercel.app", // No trailing slash!
-      "http://localhost:5173", // Keep for local development
-    ],
-    methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type"],
-    credentials: true,
-  })
-);
+// In your Express backend (index.js)
+app.use(cors({
+  origin: [
+    "https://news-hub-app-six.vercel.app", // Your frontend
+    "http://localhost:5173" // For local development
+  ],
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type"],
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
