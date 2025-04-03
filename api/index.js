@@ -178,8 +178,8 @@ const fetchAndStoreNews = async (query = "India news", num = 20) => {
   }
 };
 
-// Schedule regular API fetches (every 6 hours)
-cron.schedule("15,45 * * * *", async () => {
+// Schedule regular API fetches (every 30 minutes)
+cron.schedule("*/30 * * * *", async () => {
   await fetchAndStoreNews("India news", 20);
   await fetchAndStoreNews("Technology", 15);
   await fetchAndStoreNews("Business", 15);
@@ -212,7 +212,7 @@ app.get("/api/news", async (req, res) => {
       return res.status(404).json({
         success: false,
         error: "No articles found in database. Next update in 6 hours.",
-        nextUpdate: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(),
+        nextUpdate: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
       });
     }
 
@@ -221,7 +221,7 @@ app.get("/api/news", async (req, res) => {
       articles: dbArticles,
       count: dbArticles.length,
       lastUpdated: dbArticles[0].fetchedAt,
-      nextUpdate: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(),
+      nextUpdate: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
     });
   } catch (error) {
     console.error("Database query error:", error.message);
@@ -330,7 +330,7 @@ app.get("/api/health", async (req, res) => {
       database: {
         status: dbStatus,
         lastUpdate: lastArticle?.fetchedAt || "never",
-        nextUpdate: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(),
+        nextUpdate: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
       },
       services: {
         serpapi: !!SERPAPI_KEY ? "operational" : "not_configured",
