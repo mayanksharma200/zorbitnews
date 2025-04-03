@@ -22,7 +22,9 @@ function NewsList({ searchQuery, searchTrigger }) {
     setError(null);
     try {
       const response = await axios.get(
-        `/api/news?query=${encodeURIComponent(query)}`
+        `https://news-hub-api.vercel.app/api/news?query=${encodeURIComponent(
+          query
+        )}`
       );
 
       if (response.data.success) {
