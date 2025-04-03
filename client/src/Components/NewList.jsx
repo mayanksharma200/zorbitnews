@@ -32,17 +32,6 @@ function NewsList({ searchQuery, searchTrigger }) {
         setLastUpdated(new Date(response.data.lastUpdated).toLocaleString());
         setNextUpdate(new Date(response.data.nextUpdate).toLocaleString());
         setCurrentQuery(query);
-
-        // Store in session storage for quick retrieval
-        sessionStorage.setItem(
-          `newsCache-${query}`,
-          JSON.stringify({
-            articles: response.data.articles,
-            lastUpdated: response.data.lastUpdated,
-            nextUpdate: response.data.nextUpdate,
-            timestamp: Date.now(),
-          })
-        );
       } else {
         throw new Error(response.data.error || "No articles found in database");
       }
@@ -55,24 +44,10 @@ function NewsList({ searchQuery, searchTrigger }) {
     }
   }, []);
 
-  // Initial load - fetch default data if no query exists
+  // Initial load - fetch default data
   useEffect(() => {
     const queryToUse = searchQuery || DEFAULT_QUERY;
-    const cachedData = sessionStorage.getItem(`newsCache-${queryToUse}`);
-
-    if (cachedData) {
-      const { articles, lastUpdated, nextUpdate } = JSON.parse(cachedData);
-      setNewsArticles(articles);
-      setLastUpdated(new Date(lastUpdated).toLocaleString());
-      setNextUpdate(new Date(nextUpdate).toLocaleString());
-      setCurrentQuery(queryToUse);
-      setLoading(false);
-    }
-
-    // Fetch if no cached data or if this is a fresh load with no searchQuery
-    if (!cachedData || !searchQuery) {
-      fetchNewsFromDB(queryToUse);
-    }
+    fetchNewsFromDB(queryToUse);
   }, [fetchNewsFromDB]);
 
   // Handle search triggers
