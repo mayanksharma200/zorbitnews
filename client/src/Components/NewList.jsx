@@ -46,7 +46,7 @@ function NewsList({ searchQuery, searchTrigger }) {
 
   // Initial load - fetch default data
   useEffect(() => {
-    const queryToUse = searchQuery || DEFAULT_QUERY;
+    const queryToUse =  DEFAULT_QUERY;
     fetchNewsFromDB(queryToUse);
   }, [fetchNewsFromDB]);
 
@@ -123,7 +123,7 @@ function NewsList({ searchQuery, searchTrigger }) {
             )}
             <button
               onClick={() =>
-                fetchNewsFromDB(currentQuery || searchQuery || DEFAULT_QUERY)
+                fetchNewsFromDB(DEFAULT_QUERY)
               }
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
             >
