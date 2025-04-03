@@ -385,7 +385,7 @@ async function startServer() {
     });
 
     // Start Cron Job (every 5 minutes)
-cron.schedule("*/1 * * * *", NewsUpdater.updateDatabase);
+cron.schedule("*/30 * * * *", NewsUpdater.updateDatabase);
     console.log("Scheduled news updates every 1 minutes");
 
     // Initial update (delayed to let server start)
