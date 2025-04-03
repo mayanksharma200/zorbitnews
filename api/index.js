@@ -1,70 +1,102 @@
 import express from "express";
+import mongoose from "mongoose";
 import axios from "axios";
 import cors from "cors";
 import dotenv from "dotenv";
 import compression from "compression";
 import helmet from "helmet";
+import cron from "node-cron";
 
 dotenv.config({ path: "../.env" });
 
 const app = express();
-const port = process.env.PORT || 3000; // Use environment port or default to 3000
+const port = process.env.PORT || 3000;
 
-// Production-specific middleware
+// ======================
+// MongoDB Schema Definition
+// ======================
+const newsSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    description: {
+      type: String,
+      default: "",
+    },
+    link: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+    image: {
+      type: String,
+      validate: {
+        validator: function (v) {
+          return v === null || /^(https?:\/\/).+/.test(v);
+        },
+        message: (props) => `${props.value} is not a valid image URL!`,
+      },
+    },
+    source: {
+      type: String,
+      required: true,
+    },
+    date: {
+      type: String,
+      required: true,
+    },
+    query: {
+      type: String,
+      required: true,
+      index: true,
+    },
+    fetchedAt: {
+      type: Date,
+      default: Date.now,
+      index: true,
+    },
+  },
+  {
+    timestamps: false,
+    versionKey: false,
+  }
+);
+
+// Create model
+const News = mongoose.model("News", newsSchema);
+
+// ======================
+// Middleware Configuration
+// ======================
 if (process.env.NODE_ENV === "production") {
   app.use(compression());
   app.use(helmet());
 }
 
-// ======================
-// Middleware Configuration
-// ======================
-// app.use(
-//   cors({
-//     origin: process.env.CORS_ORIGIN?.split(",") || [
-//       "https://news-hub-app-six.vercel.app", // No trailing slash!
-//       "http://localhost:5173", // Keep for local development
-//     ],
-//     methods: ["GET", "POST", "OPTIONS"],
-//     allowedHeaders: ["Content-Type"],
-//     credentials: true,
-//   })
-// );
 app.use(
   cors({
-    origin: [
-      "https://news-hub-app-six.vercel.app", // Your frontend
-      "http://localhost:5173", // For local development
-    ],
+    origin: ["https://news-hub-app-six.vercel.app", "http://localhost:5173"],
     methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["Content-Type"],
     credentials: true,
   })
 );
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // ======================
 // API Configuration
 // ======================
-console.log("NODE_ENV:", process.env.NODE_ENV);
 const SERPAPI_KEY = process.env.SERPAPI_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-
 const GEMINI_API_URL =
   process.env.GEMINI_API_URL ||
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
-const CACHE_TTL = parseInt(process.env.CACHE_TTL) || 300000;
 const MAX_RETRIES = parseInt(process.env.MAX_RETRIES) || 3;
-
-// ======================
-// Data Store
-// ======================
-let newsCache = {
-  articles: [],
-  timestamp: null,
-  query: "",
-};
 
 // ======================
 // Helper Functions
@@ -101,34 +133,11 @@ function validateGeminiResponse(response) {
 }
 
 // ======================
-// API Endpoints
+// Scheduled Data Fetching
 // ======================
-
-// 1. News Fetching Endpoint
-app.get("/api/google-news", async (req, res) => {
+const fetchAndStoreNews = async (query = "India news", num = 20) => {
   try {
-    const { query = "India news", num = 10 } = req.query;
-
-    if (isNaN(num) || num < 1 || num > 50) {
-      return res.status(400).json({
-        success: false,
-        error: "Number of results must be between 1 and 50",
-      });
-    }
-
-    const cacheValid =
-      newsCache.timestamp &&
-      Date.now() - newsCache.timestamp < CACHE_TTL &&
-      newsCache.query === query;
-
-    if (cacheValid) {
-      return res.json({
-        success: true,
-        articles: newsCache.articles,
-        cached: true,
-      });
-    }
-
+    console.log(`Running scheduled API fetch for: ${query}`);
     const data = await fetchWithRetry("https://serpapi.com/search.json", {
       params: {
         engine: "google_news",
@@ -139,36 +148,91 @@ app.get("/api/google-news", async (req, res) => {
     });
 
     const articles = (data.news_results || []).map((article) => ({
-      title: article.title,
+      title: article.title || "No title available",
       description: article.snippet || "",
       link: article.link,
-      image: article.thumbnail,
-      source: article.source?.name || "",
-      date: article.date,
+      image: article.thumbnail || null,
+      source: article.source?.name || "Unknown source",
+      date: article.date || new Date().toISOString(),
+      query: query,
+      fetchedAt: new Date(),
     }));
 
-    newsCache = {
-      articles,
-      timestamp: Date.now(),
-      query,
-    };
+    if (articles.length > 0) {
+      const bulkOps = articles.map((article) => ({
+        updateOne: {
+          filter: { link: article.link },
+          update: { $set: article },
+          upsert: true,
+        },
+      }));
+
+      await News.bulkWrite(bulkOps);
+      console.log(`Stored ${articles.length} articles for query: ${query}`);
+    }
+
+    return articles;
+  } catch (error) {
+    console.error("Scheduled API fetch error:", error);
+    return [];
+  }
+};
+
+// Schedule regular API fetches (every 6 hours)
+cron.schedule("15,45 * * * *", async () => {
+  await fetchAndStoreNews("India news", 20);
+  await fetchAndStoreNews("Technology", 15);
+  await fetchAndStoreNews("Business", 15);
+  await fetchAndStoreNews("Sports", 15);
+});
+
+// ======================
+// Database-Only Endpoints
+// ======================
+
+// 1. News from Database (no API fallback)
+app.get("/api/news", async (req, res) => {
+  try {
+    const { query = "India news", num = 100 } = req.query;
+    const numResults = Math.min(parseInt(num), 50);
+
+    if (isNaN(numResults) || numResults < 1) {
+      return res.status(400).json({
+        success: false,
+        error: "Number of results must be between 1 and 50",
+      });
+    }
+
+    const dbArticles = await News.find({ query })
+      .sort({ fetchedAt: -1 })
+      .limit(numResults)
+      .lean();
+
+    if (dbArticles.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "No articles found in database. Next update in 6 hours.",
+        nextUpdate: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(),
+      });
+    }
 
     res.json({
       success: true,
-      articles,
+      articles: dbArticles,
+      count: dbArticles.length,
+      lastUpdated: dbArticles[0].fetchedAt,
+      nextUpdate: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(),
     });
   } catch (error) {
-    console.error("News endpoint error:", error.message);
+    console.error("Database query error:", error.message);
     res.status(500).json({
       success: false,
-      error: "Failed to fetch news",
-      details:
-        process.env.NODE_ENV === "development" ? error.message : undefined,
+      error: "Failed to fetch news from database",
     });
   }
 });
 
-// 2. Article Detail Endpoint
+// 2. Article Detail from Database
 app.get("/api/article", async (req, res) => {
   try {
     const { url } = req.query;
@@ -180,12 +244,12 @@ app.get("/api/article", async (req, res) => {
       });
     }
 
-    const article = newsCache.articles.find((a) => a.link === url);
+    const article = await News.findOne({ link: url }).lean();
 
     if (!article) {
       return res.status(404).json({
         success: false,
-        error: "Article not found. Try refreshing the news list.",
+        error: "Article not found in database",
       });
     }
 
@@ -197,12 +261,12 @@ app.get("/api/article", async (req, res) => {
     console.error("Article endpoint error:", error.message);
     res.status(500).json({
       success: false,
-      error: "Internal server error",
+      error: "Database error",
     });
   }
 });
 
-// 3. Content Generation Endpoint for gemini-1.5-flash
+// 3. Content Generation Endpoint (Gemini AI)
 app.post("/api/generate-story", async (req, res) => {
   try {
     const { title, source, imageUrl } = req.body;
@@ -256,9 +320,18 @@ app.post("/api/generate-story", async (req, res) => {
 // 4. Health Check Endpoint
 app.get("/api/health", async (req, res) => {
   try {
+    const dbStatus =
+      mongoose.connection.readyState === 1 ? "connected" : "disconnected";
+    const lastArticle = await News.findOne().sort({ fetchedAt: -1 });
+
     res.json({
       status: "healthy",
       timestamp: new Date().toISOString(),
+      database: {
+        status: dbStatus,
+        lastUpdate: lastArticle?.fetchedAt || "never",
+        nextUpdate: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(),
+      },
       services: {
         serpapi: !!SERPAPI_KEY ? "operational" : "not_configured",
         gemini: !!GEMINI_API_KEY ? "operational" : "not_configured",
@@ -270,9 +343,41 @@ app.get("/api/health", async (req, res) => {
 });
 
 // ======================
-// Server Startup
+// Database Connection
 // ======================
-app.listen(port, () => {
-  console.log(`Server running on http://localhost:${port}`);
+async function connectDB() {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000,
+      maxPoolSize: 10,
+    });
+    console.log("MongoDB connected");
+
+    // Initial data fetch on startup
+    await fetchAndStoreNews("india news", 20);
+    await fetchAndStoreNews("technology", 15);
+    await fetchAndStoreNews("business", 15);
+    await fetchAndStoreNews("sports", 15);
+  } catch (err) {
+    console.error("Database connection error:", err);
+    process.exit(1);
+  }
+}
+
+// Graceful shutdown
+process.on("SIGINT", async () => {
+  await mongoose.connection.close();
+  console.log("MongoDB connection closed");
+  process.exit(0);
 });
+
+// Start server
+connectDB().then(() => {
+  app.listen(port, () => {
+    console.log(`Server running on http://localhost:${port}`);
+  });
+});
+
 export default app;

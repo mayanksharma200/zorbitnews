@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
@@ -6,68 +6,79 @@ function NewsList({ searchQuery, searchTrigger }) {
   const [newsArticles, setNewsArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isSmallScreen, setIsSmallScreen] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState("");
+  const [nextUpdate, setNextUpdate] = useState("");
+  const [currentQuery, setCurrentQuery] = useState("");
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const checkScreenSize = () => {
-      setIsSmallScreen(window.innerWidth < 768);
-    };
+  // Default query for initial load
+  const DEFAULT_QUERY = "india news";
 
-    checkScreenSize();
-    window.addEventListener("resize", checkScreenSize);
-    return () => window.removeEventListener("resize", checkScreenSize);
-  }, []);
+  // Fetch news from database only
+  const fetchNewsFromDB = useCallback(async (query) => {
+    if (!query) return; // Don't fetch if no query
 
-  const extractArticleId = (url) => {
-    try {
-      const parsedUrl = new URL(url);
-      const pathParts = parsedUrl.pathname.split("/");
-      const lastPart = pathParts[pathParts.length - 1];
-      return /^[a-z0-9]{8,}$/i.test(lastPart) ? lastPart : null;
-    } catch {
-      return null;
-    }
-  };
-
-  const fetchNews = async () => {
     setLoading(true);
     setError(null);
     try {
-      // const response = await axios.get(
-      //   `http://localhost:3000/api/google-news?query=${encodeURIComponent(
-      //     searchQuery
-      //   )}`
-      // );
-            const response = await axios.get(
-              `https://news-hub-api.vercel.app/api/google-news?query=${encodeURIComponent(
-                searchQuery
-              )}`
-            );
+      const response = await axios.get(
+        `/api/news?query=${encodeURIComponent(query)}`
+      );
 
-      if (response.data.success && Array.isArray(response.data.articles)) {
+      if (response.data.success) {
         setNewsArticles(response.data.articles);
-        if (response.data.articles.length === 0) {
-          setError("No articles found for this search");
-        }
+        setLastUpdated(new Date(response.data.lastUpdated).toLocaleString());
+        setNextUpdate(new Date(response.data.nextUpdate).toLocaleString());
+        setCurrentQuery(query);
+
+        // Store in session storage for quick retrieval
+        sessionStorage.setItem(
+          `newsCache-${query}`,
+          JSON.stringify({
+            articles: response.data.articles,
+            lastUpdated: response.data.lastUpdated,
+            nextUpdate: response.data.nextUpdate,
+            timestamp: Date.now(),
+          })
+        );
       } else {
-        throw new Error("Invalid data format received from server");
+        throw new Error(response.data.error || "No articles found in database");
       }
     } catch (err) {
-      console.error("News fetch error:", err);
-      setError(err.message || "Failed to fetch news");
+      console.error("Database fetch error:", err);
+      setError(err.message || "Failed to fetch news from database");
       setNewsArticles([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  // Fetch news when searchTrigger changes
+  // Initial load - fetch default data if no query exists
   useEffect(() => {
-    if (searchQuery) {
-      fetchNews();
+    const queryToUse = searchQuery || DEFAULT_QUERY;
+    const cachedData = sessionStorage.getItem(`newsCache-${queryToUse}`);
+
+    if (cachedData) {
+      const { articles, lastUpdated, nextUpdate } = JSON.parse(cachedData);
+      setNewsArticles(articles);
+      setLastUpdated(new Date(lastUpdated).toLocaleString());
+      setNextUpdate(new Date(nextUpdate).toLocaleString());
+      setCurrentQuery(queryToUse);
+      setLoading(false);
     }
-  }, [searchTrigger]);
+
+    // Fetch if no cached data or if this is a fresh load with no searchQuery
+    if (!cachedData || !searchQuery) {
+      fetchNewsFromDB(queryToUse);
+    }
+  }, [fetchNewsFromDB]);
+
+  // Handle search triggers
+  useEffect(() => {
+    if (searchTrigger && searchQuery) {
+      fetchNewsFromDB(searchQuery);
+    }
+  }, [searchTrigger, searchQuery, fetchNewsFromDB]);
 
   const handleReadArticle = (article) => {
     navigate(`/article?url=${encodeURIComponent(article.link)}`, {
@@ -79,7 +90,7 @@ function NewsList({ searchQuery, searchTrigger }) {
   };
 
   const ArticleCard = ({ article }) => (
-    <div className="rounded-lg shadow-md overflow-hidden bg-white hover:shadow-lg transition-shadow duration-200">
+    <div className="rounded-lg shadow-md overflow-hidden bg-white hover:shadow-lg transition-shadow duration-200 h-full flex flex-col">
       {article.image && (
         <img
           src={article.image}
@@ -88,19 +99,26 @@ function NewsList({ searchQuery, searchTrigger }) {
           onError={(e) => (e.target.style.display = "none")}
         />
       )}
-      <div className="p-4">
+      <div className="p-4 flex flex-col flex-grow">
         <div className="flex justify-between items-center mb-2">
           <span className="text-xs bg-gray-100 px-2 py-1 rounded-full">
             {article.source}
           </span>
-          <span className="text-xs text-gray-500">{article.date}</span>
+          <span className="text-xs text-gray-500">
+            {new Date(article.date).toLocaleDateString()}
+          </span>
         </div>
         <h3 className="text-lg font-semibold mb-2 line-clamp-2">
           {article.title}
         </h3>
+        {article.description && (
+          <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+            {article.description}
+          </p>
+        )}
         <button
           onClick={() => handleReadArticle(article)}
-          className="mt-2 w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md transition-colors duration-200"
+          className="mt-auto w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md transition-colors duration-200"
         >
           Read full article
         </button>
@@ -108,7 +126,7 @@ function NewsList({ searchQuery, searchTrigger }) {
     </div>
   );
 
-  if (loading) {
+  if (loading && newsArticles.length === 0) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
@@ -117,35 +135,74 @@ function NewsList({ searchQuery, searchTrigger }) {
     );
   }
 
-  return (
-    <div className="container mx-auto px-4 py-6 font-sans">
-      {error && (
-        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded">
-          <div className="flex justify-between items-center">
-            <p>{error}</p>
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-4">
+        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded max-w-md w-full">
+          <div className="flex flex-col items-center">
+            <p className="mb-4 text-center">{error}</p>
+            {error.includes("No articles found") && (
+              <p className="text-sm mb-2">Next update: {nextUpdate}</p>
+            )}
             <button
-              onClick={fetchNews}
-              className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
+              onClick={() =>
+                fetchNewsFromDB(currentQuery || searchQuery || DEFAULT_QUERY)
+              }
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
             >
-              Retry
+              Try Again
             </button>
           </div>
         </div>
-      )}
+      </div>
+    );
+  }
 
-      {!error && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {newsArticles.map((article, index) => (
-            <ArticleCard key={`${article.link}-${index}`} article={article} />
-          ))}
+  return (
+    <div className="container mx-auto px-4 py-6 font-sans">
+      {/* Data freshness information */}
+      {newsArticles.length > 0 && (
+        <div className="mb-4 flex justify-between items-center">
+          <div className="text-sm text-gray-600">
+            Showing {newsArticles.length} results for "{currentQuery}"
+            <div className="text-xs mt-1">
+              Last updated: {lastUpdated} | Next update: {nextUpdate}
+            </div>
+          </div>
+          <button
+            onClick={() => fetchNewsFromDB(currentQuery)}
+            className="text-sm bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded"
+            title="Refresh from database"
+          >
+            Refresh
+          </button>
         </div>
       )}
 
-      {!error && newsArticles.length === 0 && (
+      {/* Articles grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {newsArticles.map((article, index) => (
+          <ArticleCard key={`${article.link}-${index}`} article={article} />
+        ))}
+      </div>
+
+      {/* Empty state */}
+      {!loading && newsArticles.length === 0 && (
         <div className="text-center py-10">
-          <p className="text-gray-500">
-            No articles found. Try a different search term.
+          <p className="text-gray-500 mb-2">
+            No articles found in database for this search.
           </p>
+          <p className="text-sm text-gray-400 mb-4">
+            Next scheduled update: {nextUpdate}
+          </p>
+          <button
+            onClick={() =>
+              fetchNewsFromDB(currentQuery || searchQuery || DEFAULT_QUERY)
+            }
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+          >
+            Check Database Again
+          </button>
         </div>
       )}
     </div>

@@ -18,7 +18,9 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "helmet": "^8.1.0",
-    "mongoose": "^8.13.0"
+    "mongodb": "^6.15.0",
+    "mongoose": "^8.13.0",
+    "node-cron": "^3.0.3"
   },
   "devDependencies": {
     "cross-env": "^7.0.3",
