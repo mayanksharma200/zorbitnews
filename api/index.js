@@ -101,7 +101,7 @@ const newsSchema = new mongoose.Schema(
 );
 
 // Create indexes
-newsSchema.index({ link: 1 }, { unique: true });
+// newsSchema.index({ link: 1 }, { unique: true });
 const News = mongoose.model("News", newsSchema);
 
 // ==============================================

@@ -28,9 +28,7 @@ function NewsList({ searchQuery, searchTrigger }) {
       }
 
       setNewsData({
-        articles: Array.isArray(response.data.articles)
-          ? response.data.articles
-          : [],
+        articles: Array.isArray(response.data.data) ? response.data.data : [],
         lastUpdated: new Date().toLocaleString(),
         nextUpdate: new Date(Date.now() + 3600000).toLocaleString(),
       });
