@@ -28,9 +28,11 @@ function NewsList({ searchQuery, searchTrigger }) {
       }
 
       setNewsData({
-        articles: Array.isArray(response.data.data) ? response.data.data : [],
-        lastUpdated: response.data.meta?.lastUpdated || "Unknown",
-        nextUpdate: response.data.meta?.nextUpdate || "Unknown",
+        articles: Array.isArray(response.data.articles)
+          ? response.data.articles
+          : [],
+        lastUpdated: new Date().toLocaleString(),
+        nextUpdate: new Date(Date.now() + 3600000).toLocaleString(),
       });
       setCurrentQuery(query);
     } catch (err) {
@@ -45,6 +47,12 @@ function NewsList({ searchQuery, searchTrigger }) {
   useEffect(() => {
     fetchNewsFromDB();
   }, [fetchNewsFromDB]);
+
+  useEffect(() => {
+    if (searchQuery && searchTrigger) {
+      fetchNewsFromDB(searchQuery);
+    }
+  }, [searchQuery, searchTrigger, fetchNewsFromDB]);
 
   const handleReadArticle = (article) => {
     if (!article?.link) return;
@@ -72,9 +80,7 @@ function NewsList({ searchQuery, searchTrigger }) {
               {article.source || "Unknown"}
             </span>
             <span className="text-xs text-gray-500">
-              {article.date
-                ? new Date(article.date).toLocaleDateString()
-                : "N/A"}
+              {article.date ? article.date.split(",")[0] : "N/A"}
             </span>
           </div>
           <h3 className="text-lg font-semibold mb-2 line-clamp-2">
