@@ -3,21 +3,17 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
 function NewsList({ searchQuery, searchTrigger }) {
-  const [newsArticles, setNewsArticles] = useState([]);
+  const [newsData, setNewsData] = useState({
+    articles: [],
+    lastUpdated: "",
+    nextUpdate: "",
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [lastUpdated, setLastUpdated] = useState("");
-  const [nextUpdate, setNextUpdate] = useState("");
-  const [currentQuery, setCurrentQuery] = useState("");
+  const [currentQuery, setCurrentQuery] = useState("India news");
   const navigate = useNavigate();
 
-  // Default query for initial load
-  const DEFAULT_QUERY = "india news";
-
-  // Fetch news from database only
-  const fetchNewsFromDB = useCallback(async (query) => {
-    if (!query) return; // Don't fetch if no query
-
+  const fetchNewsFromDB = useCallback(async (query = "India news") => {
     setLoading(true);
     setError(null);
     try {
@@ -27,83 +23,81 @@ function NewsList({ searchQuery, searchTrigger }) {
         )}`
       );
 
-      if (response.data.success) {
-        setNewsArticles(response.data.articles);
-        setLastUpdated(new Date(response.data.lastUpdated).toLocaleString());
-        setNextUpdate(new Date(response.data.nextUpdate).toLocaleString());
-        setCurrentQuery(query);
-      } else {
-        throw new Error(response.data.error || "No articles found in database");
+      if (!response.data?.success) {
+        throw new Error(response.data?.error || "Invalid response from server");
       }
+
+      setNewsData({
+        articles: Array.isArray(response.data.data) ? response.data.data : [],
+        lastUpdated: response.data.meta?.lastUpdated || "Unknown",
+        nextUpdate: response.data.meta?.nextUpdate || "Unknown",
+      });
+      setCurrentQuery(query);
     } catch (err) {
-      console.error("Database fetch error:", err);
-      setError(err.message || "Failed to fetch news from database");
-      setNewsArticles([]);
+      console.error("Fetch error:", err);
+      setError(err.message || "Failed to fetch news");
+      setNewsData((prev) => ({ ...prev, articles: [] }));
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Initial load - fetch default data
   useEffect(() => {
-    const queryToUse =  DEFAULT_QUERY;
-    fetchNewsFromDB(queryToUse);
+    fetchNewsFromDB();
   }, [fetchNewsFromDB]);
 
-  // Handle search triggers
-  // useEffect(() => {
-  //   if (searchTrigger && searchQuery) {
-  //     fetchNewsFromDB(searchQuery);
-  //   }
-  // }, [searchTrigger, searchQuery, fetchNewsFromDB]);
-
   const handleReadArticle = (article) => {
+    if (!article?.link) return;
     navigate(`/article?url=${encodeURIComponent(article.link)}`, {
-      state: {
-        articleData: article,
-        articleUrl: article.link,
-      },
+      state: { articleData: article },
     });
   };
 
-  const ArticleCard = ({ article }) => (
-    <div className="rounded-lg shadow-md overflow-hidden bg-white hover:shadow-lg transition-shadow duration-200 h-full flex flex-col">
-      {article.image && (
-        <img
-          src={article.image}
-          alt={article.title}
-          className="w-full h-48 object-cover"
-          onError={(e) => (e.target.style.display = "none")}
-        />
-      )}
-      <div className="p-4 flex flex-col flex-grow">
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-xs bg-gray-100 px-2 py-1 rounded-full">
-            {article.source}
-          </span>
-          <span className="text-xs text-gray-500">
-            {new Date(article.date).toLocaleDateString()}
-          </span>
-        </div>
-        <h3 className="text-lg font-semibold mb-2 line-clamp-2">
-          {article.title}
-        </h3>
-        {article.description && (
-          <p className="text-gray-600 text-sm mb-4 line-clamp-3">
-            {article.description}
-          </p>
-        )}
-        <button
-          onClick={() => handleReadArticle(article)}
-          className="mt-auto w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md transition-colors duration-200"
-        >
-          Read full article
-        </button>
-      </div>
-    </div>
-  );
+  const ArticleCard = ({ article }) => {
+    if (!article) return null;
 
-  if (loading && newsArticles.length === 0) {
+    return (
+      <div className="rounded-lg shadow-md overflow-hidden bg-white hover:shadow-lg transition-shadow duration-200 h-full flex flex-col">
+        {article.image && (
+          <img
+            src={article.image}
+            alt={article.title || "News image"}
+            className="w-full h-48 object-cover"
+            onError={(e) => (e.target.style.display = "none")}
+          />
+        )}
+        <div className="p-4 flex flex-col flex-grow">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-xs bg-gray-100 px-2 py-1 rounded-full">
+              {article.source || "Unknown"}
+            </span>
+            <span className="text-xs text-gray-500">
+              {article.date
+                ? new Date(article.date).toLocaleDateString()
+                : "N/A"}
+            </span>
+          </div>
+          <h3 className="text-lg font-semibold mb-2 line-clamp-2">
+            {article.title || "No title available"}
+          </h3>
+          {article.description && (
+            <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+              {article.description}
+            </p>
+          )}
+          <button
+            onClick={() => handleReadArticle(article)}
+            className="mt-auto w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md transition-colors duration-200"
+            disabled={!article.link}
+          >
+            Read full article
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
@@ -118,13 +112,8 @@ function NewsList({ searchQuery, searchTrigger }) {
         <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded max-w-md w-full">
           <div className="flex flex-col items-center">
             <p className="mb-4 text-center">{error}</p>
-            {error.includes("No articles found") && (
-              <p className="text-sm mb-2">Next update: {nextUpdate}</p>
-            )}
             <button
-              onClick={() =>
-                fetchNewsFromDB(DEFAULT_QUERY)
-              }
+              onClick={() => fetchNewsFromDB(currentQuery)}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
             >
               Try Again
@@ -137,48 +126,38 @@ function NewsList({ searchQuery, searchTrigger }) {
 
   return (
     <div className="container mx-auto px-4 py-6 font-sans">
-      {/* Data freshness information */}
-      {newsArticles.length > 0 && (
-        <div className="mb-4 flex justify-between items-center">
-          <div className="text-sm text-gray-600">
-            Showing {newsArticles.length} results for "{currentQuery}"
-            <div className="text-xs mt-1">
-              Last updated: {lastUpdated} | Next update: {nextUpdate}
-            </div>
+      <div className="mb-4 flex justify-between items-center">
+        <div className="text-sm text-gray-600">
+          Showing {newsData.articles.length} results for "{currentQuery}"
+          <div className="text-xs mt-1">
+            Last updated: {newsData.lastUpdated} | Next update:{" "}
+            {newsData.nextUpdate}
           </div>
-          <button
-            // onClick={() => fetchNewsFromDB(currentQuery)}
-            className="text-sm bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded"
-            title="Refresh from database"
-          >
-            Refresh
-          </button>
         </div>
-      )}
+        <button
+          onClick={() => fetchNewsFromDB(currentQuery)}
+          className="text-sm bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded"
+        >
+          Refresh
+        </button>
+      </div>
 
-      {/* Articles grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {newsArticles.map((article, index) => (
-          <ArticleCard key={`${article.link}-${index}`} article={article} />
+        {newsData.articles.map((article) => (
+          <ArticleCard key={article._id} article={article} />
         ))}
       </div>
 
-      {/* Empty state */}
-      {!loading && newsArticles.length === 0 && (
+      {newsData.articles.length === 0 && !loading && (
         <div className="text-center py-10">
           <p className="text-gray-500 mb-2">
-            No articles found in database for this search.
-          </p>
-          <p className="text-sm text-gray-400 mb-4">
-            Next scheduled update: {nextUpdate}
+            No articles found for this query.
           </p>
           <button
-            // onClick={() =>
-            //   fetchNewsFromDB(DEFAULT_QUERY)
-            // }
+            onClick={() => fetchNewsFromDB("India news")}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
           >
-            Check Database Again
+            Load Default News
           </button>
         </div>
       )}

@@ -20,7 +20,7 @@ function ArticlePage() {
       // 1. Fetch article if not in state
       if (!article && location.state?.articleUrl) {
         const articleResponse = await axios.get(
-          "https://news-hub-api.vercel.app/api/article",
+          "/api/article",
           {
             params: { url: location.state.articleUrl },
           }
@@ -34,7 +34,7 @@ function ArticlePage() {
 
       // 2. Generate content
       const generateResponse = await axios.post(
-        "https://news-hub-api.vercel.app/api/generate-story",
+        "/api/generate-story",
         {
           title: article?.title || location.state?.articleData?.title,
           source: article?.source || location.state?.articleData?.source,
