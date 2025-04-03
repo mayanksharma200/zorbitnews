@@ -356,10 +356,10 @@ async function connectDB() {
     console.log("MongoDB connected");
 
     // Initial data fetch on startup
-    await fetchAndStoreNews("india news", 20);
-    await fetchAndStoreNews("technology", 15);
-    await fetchAndStoreNews("business", 15);
-    await fetchAndStoreNews("sports", 15);
+    // await fetchAndStoreNews("india news", 20);
+    // await fetchAndStoreNews("technology", 15);
+    // await fetchAndStoreNews("business", 15);
+    // await fetchAndStoreNews("sports", 15);
   } catch (err) {
     console.error("Database connection error:", err);
     process.exit(1);

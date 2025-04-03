@@ -51,11 +51,11 @@ function NewsList({ searchQuery, searchTrigger }) {
   }, [fetchNewsFromDB]);
 
   // Handle search triggers
-  useEffect(() => {
-    if (searchTrigger && searchQuery) {
-      fetchNewsFromDB(searchQuery);
-    }
-  }, [searchTrigger, searchQuery, fetchNewsFromDB]);
+  // useEffect(() => {
+  //   if (searchTrigger && searchQuery) {
+  //     fetchNewsFromDB(searchQuery);
+  //   }
+  // }, [searchTrigger, searchQuery, fetchNewsFromDB]);
 
   const handleReadArticle = (article) => {
     navigate(`/article?url=${encodeURIComponent(article.link)}`, {
@@ -147,7 +147,7 @@ function NewsList({ searchQuery, searchTrigger }) {
             </div>
           </div>
           <button
-            onClick={() => fetchNewsFromDB(currentQuery)}
+            // onClick={() => fetchNewsFromDB(currentQuery)}
             className="text-sm bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded"
             title="Refresh from database"
           >
@@ -173,9 +173,9 @@ function NewsList({ searchQuery, searchTrigger }) {
             Next scheduled update: {nextUpdate}
           </p>
           <button
-            onClick={() =>
-              fetchNewsFromDB(currentQuery || searchQuery || DEFAULT_QUERY)
-            }
+            // onClick={() =>
+            //   fetchNewsFromDB(DEFAULT_QUERY)
+            // }
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
           >
             Check Database Again
