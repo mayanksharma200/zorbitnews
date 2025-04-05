@@ -360,8 +360,8 @@ app.get("/api/news", async (req, res) => {
     }
 
     const articles = await News.find({ query })
-      .sort({ fetchedAt: -1 })
-      .limit(numResults)
+      .sort({ fetchedAt: -1, _id: -1 })
+      .limit(75)
       .lean();
 
     const lastUpdated = articles[0]?.fetchedAt || null;

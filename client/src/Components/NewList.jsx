@@ -10,10 +10,10 @@ function NewsList({ searchQuery, searchTrigger }) {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [currentQuery, setCurrentQuery] = useState("India news");
+  const [currentQuery, setCurrentQuery] = useState("india news");
   const navigate = useNavigate();
 
-  const fetchNewsFromDB = useCallback(async (query = "India news") => {
+  const fetchNewsFromDB = useCallback(async (query = "india news") => {
     setLoading(true);
     setError(null);
     try {
@@ -158,7 +158,7 @@ function NewsList({ searchQuery, searchTrigger }) {
             No articles found for this query.
           </p>
           <button
-            onClick={() => fetchNewsFromDB("India news")}
+            onClick={() => fetchNewsFromDB("india news")}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
           >
             Load Default News
