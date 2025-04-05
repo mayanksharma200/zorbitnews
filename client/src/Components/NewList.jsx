@@ -20,7 +20,7 @@ function NewsList({ searchQuery, searchTrigger }) {
       const response = await axios.get(
         `https://news-hub-api.vercel.app/api/news?query=${encodeURIComponent(
           query
-        )}`
+        )}&num=75`
       );
 
       if (!response.data?.success) {
