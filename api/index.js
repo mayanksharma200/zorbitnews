@@ -478,6 +478,16 @@ app.post("/api/cron/update-news", async (req, res) => {
   }
 });
 
+app.get("/api/debug/env", (req, res) => {
+  res.json({
+    dbConnected: mongoose.connection.readyState === 1,
+    envVars: {
+      MONGODB_URI: !!process.env.MONGODB_URI,
+      CRON_SECRET: !!process.env.CRON_SECRET,
+      SERPAPI_KEY: !!process.env.SERPAPI_KEY,
+    },
+  });
+});
 // ==============================================
 // Server Initialization
 // ==============================================
