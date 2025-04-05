@@ -1,12 +1,13 @@
 import express from "express";
 import mongoose from "mongoose";
 import axios from "axios";
+import cron from "node-cron";
 import dotenv from "dotenv";
 import cors from "cors";
 import compression from "compression";
 import helmet from "helmet";
 
-// Load environment variables
+// Configuration
 dotenv.config({ path: "../.env" });
 const app = express();
 const port = process.env.PORT || 3000;
@@ -16,9 +17,7 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_API_URL =
   process.env.GEMINI_API_URL ||
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
-const CRON_SECRET = process.env.CRON_SECRET; // Required for cron-job.org authentication
-const SERPAPI_KEY = process.env.SERPAPI_KEY; // Required for news fetching
-const MONGODB_URI = process.env.MONGODB_URI; // Required for database connection
+const MAX_RETRIES = parseInt(process.env.MAX_RETRIES) || 3;
 
 // ==============================================
 // Database Models
@@ -45,7 +44,9 @@ const lockSchema = new mongoose.Schema(
       required: true,
     },
   },
-  { timestamps: false }
+  {
+    timestamps: false,
+  }
 );
 
 const Lock = mongoose.model("Lock", lockSchema);
@@ -99,6 +100,8 @@ const newsSchema = new mongoose.Schema(
   }
 );
 
+// Create indexes
+// newsSchema.index({ link: 1 }, { unique: true });
 const News = mongoose.model("News", newsSchema);
 
 // ==============================================
@@ -123,10 +126,64 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // ==============================================
+// Distributed Lock Manager
+// ==============================================
+
+class LockManager {
+  static async acquire(jobName, instanceId, ttlMinutes = 5) {
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + ttlMinutes * 60000);
+
+    try {
+      // Find and update any expired lock or create new one
+      const result = await Lock.findOneAndUpdate(
+        {
+          jobName,
+          $or: [{ expiresAt: { $lt: now } }, { expiresAt: { $exists: false } }],
+        },
+        {
+          $set: {
+            lockedAt: now,
+            lockedBy: instanceId,
+            expiresAt,
+          },
+        },
+        {
+          upsert: true,
+          new: true,
+          setDefaultsOnInsert: true,
+        }
+      );
+
+      // Verify we got the lock
+      return result.lockedBy === instanceId;
+    } catch (error) {
+      console.error("Lock acquisition failed:", error);
+      return false;
+    }
+  }
+
+  static async release(jobName, instanceId) {
+    try {
+      await Lock.deleteOne({
+        jobName,
+        lockedBy: instanceId,
+      });
+    } catch (error) {
+      console.error("Lock release failed:", error);
+    }
+  }
+
+  static async getLockStatus(jobName) {
+    return Lock.findOne({ jobName });
+  }
+}
+
+// ==============================================
 // Helper Functions
 // ==============================================
 
-async function fetchWithRetry(url, config = {}, retries = 3) {
+async function fetchWithRetry(url, config = {}, retries = MAX_RETRIES) {
   try {
     const response = await axios({
       url,
@@ -142,7 +199,7 @@ async function fetchWithRetry(url, config = {}, retries = 3) {
     if (retries > 0) {
       console.log(`Retrying... (${retries} attempts left)`);
       await new Promise((resolve) =>
-        setTimeout(resolve, 1000 * (3 - retries + 1))
+        setTimeout(resolve, 1000 * (MAX_RETRIES - retries + 1))
       );
       return fetchWithRetry(url, config, retries - 1);
     }
@@ -168,7 +225,7 @@ class NewsUpdater {
         params: {
           engine: "google_news",
           q: query,
-          api_key: SERPAPI_KEY,
+          api_key: process.env.SERPAPI_KEY,
           num: parseInt(num),
         },
         timeout: 10000,
@@ -181,30 +238,36 @@ class NewsUpdater {
   }
 
   static async updateDatabase() {
-    const instanceId = `cron-job_${Date.now()}`;
+    const instanceId =
+      process.env.HOSTNAME || `local_${process.pid}_${Date.now()}`;
     const lockName = "news_update_job";
 
     console.log(`[${new Date().toISOString()}] Attempting to acquire lock...`);
 
     const lockAcquired = await LockManager.acquire(lockName, instanceId);
     if (!lockAcquired) {
-      console.log("Update skipped (already in progress by another process)");
+      const currentLock = await LockManager.getLockStatus(lockName);
+      console.log(
+        `Update skipped. Currently locked by ${currentLock?.lockedBy} until ${currentLock?.expiresAt}`
+      );
       return;
     }
 
     try {
-      console.log(`[${new Date().toISOString()}] Starting news update`);
+      console.log(
+        `[${new Date().toISOString()}] Starting news update as ${instanceId}`
+      );
 
       const updateCategories = [
-        { query: "india news", count: 20 },
-        { query: "technology", count: 15 },
-        { query: "business", count: 15 },
-        { query: "sports", count: 15 },
+        { query: "India news", count: 20 },
+        { query: "Technology", count: 15 },
+        { query: "Business", count: 15 },
+        { query: "Sports", count: 15 },
       ];
 
       for (const { query, count } of updateCategories) {
         console.log(`Fetching ${query} articles...`);
-        const articles = await this.fetchFromSerpAPI(query, count);
+        const articles = await NewsUpdater.fetchFromSerpAPI(query, count);
 
         if (articles.length === 0) {
           console.log(`No articles found for ${query}`);
@@ -239,60 +302,10 @@ class NewsUpdater {
       console.error("Update process failed:", error);
     } finally {
       await LockManager.release(lockName, instanceId);
-      console.log(`[${new Date().toISOString()}] Update completed`);
-    }
-  }
-}
-
-// ==============================================
-// Distributed Lock Manager
-// ==============================================
-
-class LockManager {
-  static async acquire(jobName, instanceId, ttlMinutes = 5) {
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + ttlMinutes * 60000);
-
-    try {
-      const result = await Lock.findOneAndUpdate(
-        {
-          jobName,
-          $or: [{ expiresAt: { $lt: now } }, { expiresAt: { $exists: false } }],
-        },
-        {
-          $set: {
-            lockedAt: now,
-            lockedBy: instanceId,
-            expiresAt,
-          },
-        },
-        {
-          upsert: true,
-          new: true,
-          setDefaultsOnInsert: true,
-        }
+      console.log(
+        `[${new Date().toISOString()}] Update completed by ${instanceId}`
       );
-
-      return result.lockedBy === instanceId;
-    } catch (error) {
-      console.error("Lock acquisition failed:", error);
-      return false;
     }
-  }
-
-  static async release(jobName, instanceId) {
-    try {
-      await Lock.deleteOne({
-        jobName,
-        lockedBy: instanceId,
-      });
-    } catch (error) {
-      console.error("Lock release failed:", error);
-    }
-  }
-
-  static async getLockStatus(jobName) {
-    return Lock.findOne({ jobName });
   }
 }
 
@@ -323,7 +336,6 @@ app.get("/api/health", async (req, res) => {
       },
       services: {
         gemini: !!GEMINI_API_KEY ? "operational" : "not_configured",
-        serpapi: !!SERPAPI_KEY ? "operational" : "not_configured",
       },
     });
   } catch (error) {
@@ -352,12 +364,16 @@ app.get("/api/news", async (req, res) => {
       .limit(numResults)
       .lean();
 
+    const lastUpdated = articles[0]?.fetchedAt || null;
+    const nextUpdate = new Date(Date.now() + 1 * 60 * 1000); // 5 minutes from now
+
     res.json({
       success: true,
       data: articles,
       meta: {
         count: articles.length,
-        lastUpdated: articles[0]?.fetchedAt || null,
+        lastUpdated,
+        nextUpdate: nextUpdate.toISOString(),
       },
     });
   } catch (error) {
@@ -368,7 +384,40 @@ app.get("/api/news", async (req, res) => {
   }
 });
 
-// Content Generation Endpoint (RESTORED)
+// Get Single Article
+app.get("/api/article", async (req, res) => {
+  try {
+    const { url } = req.query;
+
+    if (!url) {
+      return res.status(400).json({
+        success: false,
+        error: "Article URL is required",
+      });
+    }
+
+    const article = await News.findOne({ link: url }).lean();
+
+    if (!article) {
+      return res.status(404).json({
+        success: false,
+        error: "Article not found in database",
+      });
+    }
+
+    res.json({
+      success: true,
+      article,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: "Database error",
+    });
+  }
+});
+
+// Content Generation Endpoint (Gemini AI)
 app.post("/api/generate-story", async (req, res) => {
   try {
     const { title, source, imageUrl } = req.body;
@@ -421,54 +470,13 @@ app.post("/api/generate-story", async (req, res) => {
   }
 });
 
-// Get Single Article (EXPLICITLY INCLUDED)
-app.get("/api/article", async (req, res) => {
-  try {
-    const { url } = req.query;
-
-    if (!url) {
-      return res.status(400).json({
-        success: false,
-        error: "Article URL is required"
-      });
-    }
-
-    const article = await News.findOne({ link: url }).lean();
-
-    if (!article) {
-      return res.status(404).json({
-        success: false,
-        error: "Article not found in database"
-      });
-    }
-
-    res.json({
-      success: true,
-      article
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: "Database error"
-    });
-  }
-});
-
-// Cron-job.org Endpoint
-app.post("/api/cron/update-news", async (req, res) => {
-  // Verify the secret key
-  if (req.headers["x-cron-secret"] !== CRON_SECRET) {
-    return res.status(403).json({
-      success: false,
-      error: "Unauthorized",
-    });
-  }
-
+// Manual Update Trigger (for testing)
+app.post("/api/admin/update-now", async (req, res) => {
   try {
     await NewsUpdater.updateDatabase();
     res.json({
       success: true,
-      message: "News update completed",
+      message: "Manual update triggered",
     });
   } catch (error) {
     res.status(500).json({
@@ -478,16 +486,7 @@ app.post("/api/cron/update-news", async (req, res) => {
   }
 });
 
-app.get("/api/debug/env", (req, res) => {
-  res.json({
-    dbConnected: mongoose.connection.readyState === 1,
-    envVars: {
-      MONGODB_URI: !!process.env.MONGODB_URI,
-      CRON_SECRET: !!process.env.CRON_SECRET,
-      SERPAPI_KEY: !!process.env.SERPAPI_KEY,
-    },
-  });
-});
+
 // ==============================================
 // Server Initialization
 // ==============================================
@@ -495,7 +494,7 @@ app.get("/api/debug/env", (req, res) => {
 async function startServer() {
   try {
     // Database Connection
-    await mongoose.connect(MONGODB_URI, {
+    await mongoose.connect(process.env.MONGODB_URI, {
       serverSelectionTimeoutMS: 5000,
       maxPoolSize: 10,
     });
@@ -507,6 +506,13 @@ async function startServer() {
     mongoose.connection.on("error", (err) => {
       console.error("MongoDB connection error:", err);
     });
+
+    // Start Cron Job (every 5 minutes)
+    // cron.schedule("*/30 * * * *", NewsUpdater.updateDatabase);
+    console.log("Scheduled news updates every 30 minutes");
+
+    // Initial update (delayed to let server start)
+    // setTimeout(() => NewsUpdater.updateDatabase(), 15000);
 
     // Start HTTP Server
     app.listen(port, () => {
@@ -530,6 +536,7 @@ process.on("SIGINT", async () => {
   }
 });
 
+// Start the application
 startServer();
 
 export default app;
