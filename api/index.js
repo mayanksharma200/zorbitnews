@@ -259,10 +259,10 @@ class NewsUpdater {
       );
 
       const updateCategories = [
-        { query: "India news", count: 20 },
-        { query: "Technology", count: 15 },
-        { query: "Business", count: 15 },
-        { query: "Sports", count: 15 },
+        { query: "india news", count: 100 },
+        { query: "technology", count: 75 },
+        { query: "business", count: 75 },
+        { query: "sports", count: 75 },
       ];
 
       for (const { query, count } of updateCategories) {
@@ -349,8 +349,8 @@ app.get("/api/health", async (req, res) => {
 // Get News Articles
 app.get("/api/news", async (req, res) => {
   try {
-    const { query = "India news", num = 20 } = req.query;
-    const numResults = Math.min(parseInt(num), 100);
+    const { query = "India news", num = 75 } = req.query;
+    const numResults = Math.min(parseInt(num), 150);
 
     if (isNaN(numResults)) {
       return res.status(400).json({
