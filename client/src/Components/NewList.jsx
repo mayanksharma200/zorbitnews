@@ -18,7 +18,7 @@ function NewsList({ searchQuery, searchTrigger }) {
     setError(null);
     try {
       const response = await axios.get(
-        `https://news-hub-api.vercel.app/api/news?query=${encodeURIComponent(
+        `/api/news?query=${encodeURIComponent(
           query
         )}&num=75`
       );

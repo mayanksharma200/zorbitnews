@@ -8,7 +8,8 @@ import compression from "compression";
 import helmet from "helmet";
 
 // Configuration
-dotenv.config({ path: "../.env" });
+dotenv.config(); // ✅
+
 const app = express();
 const port = process.env.PORT || 3000;
 

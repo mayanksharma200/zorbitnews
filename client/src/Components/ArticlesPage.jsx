@@ -34,7 +34,7 @@ function ArticlePage() {
 
       // 2. Generate content
       const generateResponse = await axios.post(
-        "https://news-hub-api.vercel.app/api/generate-story",
+        "/api/generate-story",
         {
           title: article?.title || location.state?.articleData?.title,
           source: article?.source || location.state?.articleData?.source,

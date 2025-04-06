@@ -1,0 +1,35 @@
+{
+  "name": "news",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "nodemon api/index.js",
+    "client": "cd client && npm run dev",
+    "start": "node api/index.js",
+    "build": "cd client && npm install && npm run build",
+    "vercel-build": "npm install && npm run build",
+    "test": "cross-env NODE_ENV=test jest",
+    "lint": "eslint .",
+    "prestart": "npm run build"
+  },
+  "dependencies": {
+    "axios": "^1.8.4",
+    "compression": "^1.8.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "helmet": "^8.1.0",
+    "mongodb": "^6.15.0",
+    "mongoose": "^8.13.0",
+    "node-cron": "^3.0.3"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
+    "eslint": "^8.57.1",
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.9",
+    "supertest": "^6.3.4"
+  }
+}
