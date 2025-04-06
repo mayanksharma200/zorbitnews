@@ -6,7 +6,7 @@
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "nodemon api/index.js",
     "client": "cd client && npm run dev",
-    "start": "node api/index.js",
+    "start": "node index.js",
     "build": "cd client && npm install && npm run build",
     "vercel-build": "npm install && npm run build",
     "test": "cross-env NODE_ENV=test jest",
