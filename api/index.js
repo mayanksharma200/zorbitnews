@@ -116,7 +116,7 @@ if (process.env.NODE_ENV === "production") {
 
 app.use(
   cors({
-    origin: ["https://zortbit-news.vercel.app/", "http://localhost:5173"],
+    origin: ["https://zortbit-news.vercel.app", "http://localhost:5173"],
     methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["Content-Type"],
     credentials: true,
